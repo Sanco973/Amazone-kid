@@ -507,7 +507,7 @@ function __confettiTick() {
 }
 
 function startConfettiLoop() {
-  // Đảm bảo lấy đúng canvas
+  // 1. Khởi tạo canvas nếu chưa có
   if (!__confetti.canvas) {
     __confetti.canvas = document.getElementById("fireworksCanvas");
     if (!__confetti.canvas) return;
@@ -523,16 +523,17 @@ function startConfettiLoop() {
     window.addEventListener("resize", __confettiResize);
   }
 
-  // Dừng mọi tiến trình cũ nếu có để làm mới
+  // 2. ÉP DỪNG và làm sạch mọi trạng thái bị kẹt từ lần quay trước
   stopConfetti();
 
+  // 3. Khởi động lại đợt pháo giấy mới
   __confetti.running = true;
   __confetti.particles = [];
 
-  // Tạo đợt pháo giấy đầu tiên
+  // Bắn đợt đầu tiên cường độ mạnh
   __confettiSpawnBurst(160);
 
-  // Lặp lại hiệu ứng pháo giấy nhẹ nhàng trong 20 giây
+  // Lặp lại hiệu ứng bắn rải rác
   __confetti.interval = setInterval(() => {
     const bursts = 2 + Math.floor(Math.random() * 3);
     for (let b = 0; b < bursts; b++) __confettiSpawnBurst(70);
@@ -540,7 +541,10 @@ function startConfettiLoop() {
 
   __confettiTick();
 
-  // Tự động tắt sau 20 giây
+  // Đặt lại bộ đếm giờ tự động tắt sau 20 giây
+  if (__confetti.timeout) {
+    clearTimeout(__confetti.timeout);
+  }
   __confetti.timeout = setTimeout(() => {
     stopConfetti();
   }, 20000);
