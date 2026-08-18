@@ -128,6 +128,18 @@ function init() {
   if (videoElement && savedBackground) changeBackground(savedBackground);
 }
 
+// Hàm hỗ trợ tạo lưới CSS hiển thị nhiều số
+function renderDigitsGrid(values) {
+  if (values.length <= 1) return values[0] || batdau;
+
+  // Nếu hiển thị nhiều số, tự động tạo lưới. Tối đa 5 cột.
+  let cols = values.length >= 5 ? 5 : values.length;
+  
+  return `<div style="display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 20px 4vw; justify-items: center; align-items: center; width: 90vw; line-height: 1.3;">
+    ${values.map(v => `<div style="white-space: nowrap;">${v}</div>`).join('')}
+  </div>`;
+}
+
 function setRandomNumber(timestamp) {
   ArrDAIKIN = JSON.parse(localStorage.getItem("ArrDAIKIN")) || [];
   if (Start === false) return;
@@ -136,30 +148,26 @@ function setRandomNumber(timestamp) {
   var progress = timestamp - previous;
   if (progress > tocdo && ArrDAIKIN.length > 0) {
     previous = timestamp;
-    index = Math.floor(Math.random() * ArrDAIKIN.length);
-    $("#digits").html(ArrDAIKIN[index]);
+
+    // Lấy số lượng cần quay
+    let count = parseInt(localStorage.getItem("spinCount")) || 1;
+    count = Math.min(count, ArrDAIKIN.length); // Không quay vượt quá số người trong danh sách
+
+    let currentValues = [];
+    for(let i = 0; i < count; i++) {
+       let r = Math.floor(Math.random() * ArrDAIKIN.length);
+       currentValues.push(ArrDAIKIN[r]);
+    }
+    $("#digits").html(renderDigitsGrid(currentValues));
   }
 
   requestAnimationFrame(setRandomNumber);
-}
-
-function startAnimation() {
-  var element = document.getElementById("digits");
-  var element2 = document.getElementById("digits2");
-
-  element.classList.remove("run-animation");
-  element2.classList.remove("run-animation");
-  void element.offsetWidth;
-  void element2.offsetWidth;
-  element.classList.add("run-animation");
-  element2.classList.add("run-animation");
 }
 
 function setRandomNumber_Cham(timestamp) {
   ArrDAIKIN = JSON.parse(localStorage.getItem("ArrDAIKIN")) || [];
   if (!startTime) startTime = timestamp;
 
-  // nếu hết người để quay
   if (!ArrDAIKIN || ArrDAIKIN.length === 0) {
     alert("Đã hết danh sách để quay!");
     kiemtrachay = false;
@@ -168,11 +176,18 @@ function setRandomNumber_Cham(timestamp) {
     return;
   }
 
+  let count = parseInt(localStorage.getItem("spinCount")) || 1;
+  count = Math.min(count, ArrDAIKIN.length);
+
   if (cham < 5) {
     if (timestamp - previous >= timecham) {
       previous = timestamp;
-      index = Math.floor(Math.random() * ArrDAIKIN.length);
-      $("#digits").html(ArrDAIKIN[index]);
+      let currentValues = [];
+      for(let i = 0; i < count; i++) {
+         let r = Math.floor(Math.random() * ArrDAIKIN.length);
+         currentValues.push(ArrDAIKIN[r]);
+      }
+      $("#digits").html(renderDigitsGrid(currentValues));
       cham++;
       timecham += tocdo;
     }
@@ -180,25 +195,44 @@ function setRandomNumber_Cham(timestamp) {
     return;
   }
 
-  // ✅ kết thúc, chốt kết quả
+  // ✅ KẾT THÚC QUAY - CHỐT KẾT QUẢ ĐẢM BẢO KHÔNG TRÙNG LẶP
   cham = 0;
   timecham = tocdo;
 
-  var result = ArrDAIKIN[index];
+  let finalWinners = [];
+  let available = [...ArrDAIKIN]; // Danh sách có thể trúng
+  let needed = count;
 
+  // 1. Ưu tiên xét ép trúng (nếu có)
   var forcedWinner = JSON.parse(localStorage.getItem("ArrDAIKINTrungThuong"));
-  if (forcedWinner != null) result = forcedWinner;
+  if (forcedWinner != null && available.includes(forcedWinner)) {
+    finalWinners.push(forcedWinner);
+    available = available.filter(item => item !== forcedWinner);
+    needed--; // Đã có 1 giải ép, chỉ cần random các giải còn lại
+  }
 
-  $("#digits").html(result);
+  // 2. Random các slot còn lại
+  for(let i = 0; i < needed; i++) {
+      if (available.length === 0) break;
+      let r = Math.floor(Math.random() * available.length);
+      finalWinners.push(available[r]);
+      available.splice(r, 1); // Rút ra khỏi danh sách tạm để không trùng nhau
+  }
+
+  // Xáo trộn vị trí hiển thị để giải ép trúng không luôn nằm ở vị trí đầu tiên
+  finalWinners.sort(() => 0.5 - Math.random());
+
+  // Hiển thị lưới kết quả
+  $("#digits").html(renderDigitsGrid(finalWinners));
   startAnimation();
   startConfettiLoop();
 
-  // ✅ FIX: winners luôn là mảng
+  // 3. Ghi nhận TẤT CẢ vào danh sách trúng thưởng
   var DAIKINDaTrungThuong = ensureArray("DAIKINDaTrungThuong");
-  DAIKINDaTrungThuong.push(result);
-
-  // loại khỏi danh sách quay
-  ArrDAIKIN = ArrDAIKIN.filter((item) => item !== result);
+  finalWinners.forEach(w => {
+      DAIKINDaTrungThuong.push(w);
+      ArrDAIKIN = ArrDAIKIN.filter(item => item !== w); // Rút người này khỏi hòm phiếu
+  });
 
   localStorage.setItem("ArrDAIKINTrungThuong", JSON.stringify(null));
   localStorage.setItem("ArrDAIKIN", JSON.stringify(ArrDAIKIN));
@@ -209,8 +243,9 @@ function setRandomNumber_Cham(timestamp) {
 
   $("#start").show();
   $("#stop").hide();
-
 }
+
+
 
 function fnStart() {
   if (Start === true || kiemtrachay === true) return;

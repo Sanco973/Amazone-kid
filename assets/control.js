@@ -648,3 +648,20 @@ reloadVideoBtn?.addEventListener("click", () => {
   alert("Đã gửi lệnh ép tải lại video bỏ qua cache! Vui lòng kiểm tra màn hình quay.");
 });
 bindDigitsControls();
+// ==========================
+// Cài đặt Số lượng quay
+// ==========================
+const spinCountInput = document.getElementById("SpinCount");
+
+// Load lại số lượng đã lưu nếu có (mặc định là 1)
+const savedSpinCount = localStorage.getItem("spinCount");
+if (savedSpinCount && spinCountInput) {
+  spinCountInput.value = savedSpinCount;
+}
+
+// Bắt sự kiện mỗi khi người dùng thay đổi số lượng
+spinCountInput?.addEventListener("input", (e) => {
+  let val = parseInt(e.target.value);
+  if (isNaN(val) || val < 1) val = 1;
+  localStorage.setItem("spinCount", val);
+});
