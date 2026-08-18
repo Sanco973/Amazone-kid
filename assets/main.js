@@ -214,7 +214,7 @@ function setRandomNumber_Cham(timestamp) {
   let count = parseInt(localStorage.getItem("spinCount")) || 1;
   count = Math.min(count, ArrDAIKIN.length);
 
-  if (cham < 5) {
+  if (cham < 10) {
     if (timestamp - previous >= timecham) {
       previous = timestamp;
       let currentValues = [];
