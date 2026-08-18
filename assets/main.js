@@ -130,13 +130,14 @@ function init() {
 
 // Hàm hỗ trợ tạo lưới CSS hiển thị nhiều số
 function renderDigitsGrid(values) {
-  if (values.length <= 1) return values[0] || batdau;
+  // Lấy giá trị mặc định nếu mảng trống
+  if (values.length <= 1) return values[0] || batdau; 
 
-  // Nếu hiển thị nhiều số, tự động tạo lưới. Tối đa 5 cột.
   let cols = values.length >= 5 ? 5 : values.length;
   
-  return `<div style="display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 20px 4vw; justify-items: center; align-items: center; width: 90vw; line-height: 1.3;">
-    ${values.map(v => `<div style="white-space: nowrap;">${v}</div>`).join('')}
+  // Đã đổi 1fr thành auto và thêm justify-content: center để dồn cột vào giữa
+  return `<div style="display: grid; grid-template-columns: repeat(${cols}, auto); gap: 30px 80px; justify-content: center; align-items: center; width: 100%; line-height: 1.2;">
+    ${values.map(v => `<div style="white-space: nowrap; text-align: center;">${v}</div>`).join('')}
   </div>`;
 }
 
@@ -189,18 +190,18 @@ function setRandomNumber_Cham(timestamp) {
       }
       $("#digits").html(renderDigitsGrid(currentValues));
       cham++;
-      timecham += tocdo;
+      timecham += tocdo; // Tăng dần thời gian trễ[cite: 8]
     }
     requestAnimationFrame(setRandomNumber_Cham);
     return;
   }
 
-  // ✅ KẾT THÚC QUAY - CHỐT KẾT QUẢ ĐẢM BẢO KHÔNG TRÙNG LẶP
+  // ✅ KẾT THÚC QUAY - CHỐT KẾT QUẢ VÀ LƯU
   cham = 0;
-  timecham = tocdo;
+  timecham = tocdo; // Reset tốc độ[cite: 8]
 
   let finalWinners = [];
-  let available = [...ArrDAIKIN]; // Danh sách có thể trúng
+  let available = [...ArrDAIKIN];
   let needed = count;
 
   // 1. Ưu tiên xét ép trúng (nếu có)
@@ -208,7 +209,7 @@ function setRandomNumber_Cham(timestamp) {
   if (forcedWinner != null && available.includes(forcedWinner)) {
     finalWinners.push(forcedWinner);
     available = available.filter(item => item !== forcedWinner);
-    needed--; // Đã có 1 giải ép, chỉ cần random các giải còn lại
+    needed--;
   }
 
   // 2. Random các slot còn lại
@@ -216,22 +217,28 @@ function setRandomNumber_Cham(timestamp) {
       if (available.length === 0) break;
       let r = Math.floor(Math.random() * available.length);
       finalWinners.push(available[r]);
-      available.splice(r, 1); // Rút ra khỏi danh sách tạm để không trùng nhau
+      available.splice(r, 1);
   }
 
-  // Xáo trộn vị trí hiển thị để giải ép trúng không luôn nằm ở vị trí đầu tiên
-  finalWinners.sort(() => 0.5 - Math.random());
+  // Khắc phục lỗi đứng máy: Thay thế sort() bằng hàm shuffleArray đã có sẵn[cite: 8]
+  shuffleArray(finalWinners);
 
   // Hiển thị lưới kết quả
   $("#digits").html(renderDigitsGrid(finalWinners));
-  startAnimation();
-  startConfettiLoop();
+  
+  // Bọc try-catch để ngăn lỗi animation ảnh hưởng đến việc lưu kết quả
+  try {
+    startAnimation();
+    startConfettiLoop();
+  } catch(e) {
+    console.error("Bỏ qua lỗi hiệu ứng:", e);
+  }
 
   // 3. Ghi nhận TẤT CẢ vào danh sách trúng thưởng
   var DAIKINDaTrungThuong = ensureArray("DAIKINDaTrungThuong");
   finalWinners.forEach(w => {
       DAIKINDaTrungThuong.push(w);
-      ArrDAIKIN = ArrDAIKIN.filter(item => item !== w); // Rút người này khỏi hòm phiếu
+      ArrDAIKIN = ArrDAIKIN.filter(item => item !== w);
   });
 
   localStorage.setItem("ArrDAIKINTrungThuong", JSON.stringify(null));
@@ -239,7 +246,9 @@ function setRandomNumber_Cham(timestamp) {
   localStorage.setItem("DAIKINDaTrungThuong", JSON.stringify(DAIKINDaTrungThuong));
 
   kiemtrachay = false;
-  shuffleArray(ArrDAIKIN);
+  
+  // Xáo trộn lại danh sách còn lại cho lần quay sau[cite: 8]
+  shuffleArray(ArrDAIKIN); 
 
   $("#start").show();
   $("#stop").hide();
@@ -498,7 +507,7 @@ function __confettiTick() {
 }
 
 function startConfettiLoop() {
-  // chỉ init 1 lần
+  // Đảm bảo lấy đúng canvas
   if (!__confetti.canvas) {
     __confetti.canvas = document.getElementById("fireworksCanvas");
     if (!__confetti.canvas) return;
@@ -514,31 +523,28 @@ function startConfettiLoop() {
     window.addEventListener("resize", __confettiResize);
   }
 
-  // ✅ nếu đang chạy thì restart timer 20s (không tạo thêm interval)
-  if (!__confetti.running) {
-    __confetti.running = true;
+  // Dừng mọi tiến trình cũ nếu có để làm mới
+  stopConfetti();
 
-    // burst ngay lập tức + lặp burst
-    __confettiSpawnBurst(160);
-    __confetti.interval = setInterval(() => {
-      // 2–4 điểm burst ngẫu nhiên mỗi nhịp (nhẹ)
-      const bursts = 2 + Math.floor(Math.random() * 3);
-      for (let b = 0; b < bursts; b++) __confettiSpawnBurst(70);
-    }, 1200);
+  __confetti.running = true;
+  __confetti.particles = [];
 
-    __confettiTick();
-  }
+  // Tạo đợt pháo giấy đầu tiên
+  __confettiSpawnBurst(160);
 
-  // ✅ reset timer tự tắt sau 20 giây
-  if (__confetti.timeout) {
-    clearTimeout(__confetti.timeout);
-    __confetti.timeout = null;
-  }
+  // Lặp lại hiệu ứng pháo giấy nhẹ nhàng trong 20 giây
+  __confetti.interval = setInterval(() => {
+    const bursts = 2 + Math.floor(Math.random() * 3);
+    for (let b = 0; b < bursts; b++) __confettiSpawnBurst(70);
+  }, 1200);
+
+  __confettiTick();
+
+  // Tự động tắt sau 20 giây
   __confetti.timeout = setTimeout(() => {
     stopConfetti();
   }, 20000);
 }
-
 function stopConfetti() {
   __confetti.running = false;
 
