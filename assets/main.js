@@ -119,14 +119,43 @@ function init() {
 // ==========================
 // HÀM TẠO LƯỚI GRID 5 CỘT
 // ==========================
+// ==========================
+// HÀM TẠO LƯỚI GRID HIỂN THỊ THÔNG MINH
+// ==========================
 function renderDigitsGrid(values) {
   if (values.length <= 1) return values[0] || batdau;
   
-  let cols = values.length >= 5 ? 5 : values.length;
+  let rows = [];
+  const maxCols = 5;
+  let remainder = values.length % maxCols;
+  let startIndex = 0;
+
+  // 1. Nếu số lượng không chia hết cho 5, đưa phần dư (số lượng ít) lên hàng đầu tiên
+  if (remainder > 0) {
+    rows.push(values.slice(0, remainder));
+    startIndex = remainder;
+  }
+
+  // 2. Phân bổ các số còn lại thành từng hàng, mỗi hàng đủ 5 cột
+  while (startIndex < values.length) {
+    rows.push(values.slice(startIndex, startIndex + maxCols));
+    startIndex += maxCols;
+  }
+
+  // 3. Render HTML bằng Flexbox để canh giữa tuyệt đối cho mọi hàng
+  let html = `<div style="display: flex; flex-direction: column; gap: 30px; align-items: center; width: 100%; line-height: 1.2;">`;
   
-  return `<div style="display: grid; grid-template-columns: repeat(${cols}, auto); gap: 30px 80px; justify-content: center; align-items: center; width: 100%; line-height: 1.2;">
-    ${values.map(v => `<div style="white-space: nowrap; text-align: center;">${v}</div>`).join('')}
-  </div>`;
+  for (let row of rows) {
+    html += `<div style="display: flex; gap: 80px; justify-content: center; flex-wrap: nowrap;">`;
+    for (let v of row) {
+      html += `<div style="white-space: nowrap; text-align: center;">${v}</div>`;
+    }
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  
+  return html;
 }
 
 // ==========================
