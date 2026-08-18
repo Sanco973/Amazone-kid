@@ -40,15 +40,11 @@ function shuffleArray(array) {
 }
 
 // ==========================
-// ✅ Background storage (FIX giật/đứng do JSON.parse)
+// Background storage
 // ==========================
 function readStoredBackground() {
   const raw = localStorage.getItem("backgroundVideo");
   if (!raw) return null;
-
-  // hỗ trợ cả 2 kiểu:
-  // 1) kiểu mới: JSON string -> "\"assets/...mp4\""
-  // 2) kiểu cũ: string thô -> "assets/...mp4"
   try {
     const parsed = JSON.parse(raw);
     return typeof parsed === "string" ? parsed : raw;
@@ -59,12 +55,11 @@ function readStoredBackground() {
 
 function writeStoredBackground(url) {
   if (!url) return;
-  // lưu kiểu mới (ổn định, không gây JSON.parse crash)
   localStorage.setItem("backgroundVideo", JSON.stringify(url));
 }
 
 // ==========================
-// ✅ Cho index.html tự nhập danh sách nếu chưa có
+// Nhập danh sách dự phòng
 // ==========================
 function nhapdanhsachquay() {
   let inputText = prompt("Nhập danh sách (mỗi dòng 1 người/số):");
@@ -75,7 +70,6 @@ function nhapdanhsachquay() {
     .map((x) => x.trim())
     .filter(Boolean);
 
-  // unique
   let set = new Set();
   for (let s of lines) {
     if (s !== "NO") set.add(String(s));
@@ -92,8 +86,6 @@ function nhapdanhsachquay() {
 
   localStorage.setItem("ArrDAIKIN", JSON.stringify(ArrDAIKIN));
   localStorage.setItem("ArrDAIKINbackup", JSON.stringify(ArrDAIKINbackup));
-
-  // đảm bảo các key không null
   ensureArray("DAIKINDaTrungThuong");
   localStorage.setItem("ArrDAIKINTrungThuong", JSON.stringify(null));
 }
@@ -102,15 +94,12 @@ function init() {
   ArrDAIKIN = JSON.parse(localStorage.getItem("ArrDAIKIN")) || [];
   ArrDAIKINbackup = JSON.parse(localStorage.getItem("ArrDAIKINbackup")) || [];
 
-  // đảm bảo winners luôn là mảng
   ensureArray("DAIKINDaTrungThuong");
 
-  // background mặc định + migrate dữ liệu cũ
   const currentBg = readStoredBackground();
   if (!currentBg) {
     writeStoredBackground("assets/background/video1.mp4");
   } else {
-    // migrate string thô -> JSON string
     const raw = localStorage.getItem("backgroundVideo");
     if (raw && raw[0] !== '"') writeStoredBackground(currentBg);
   }
@@ -122,25 +111,27 @@ function init() {
 
   $("#digits").html(batdau);
 
-  // apply background đã lưu
   var savedBackground = readStoredBackground();
   let videoElement = document.getElementById("background-video");
   if (videoElement && savedBackground) changeBackground(savedBackground);
 }
 
-// Hàm hỗ trợ tạo lưới CSS hiển thị nhiều số
+// ==========================
+// HÀM TẠO LƯỚI GRID 5 CỘT
+// ==========================
 function renderDigitsGrid(values) {
-  // Lấy giá trị mặc định nếu mảng trống
-  if (values.length <= 1) return values[0] || batdau; 
-
+  if (values.length <= 1) return values[0] || batdau;
+  
   let cols = values.length >= 5 ? 5 : values.length;
   
-  // Đã đổi 1fr thành auto và thêm justify-content: center để dồn cột vào giữa
   return `<div style="display: grid; grid-template-columns: repeat(${cols}, auto); gap: 30px 80px; justify-content: center; align-items: center; width: 100%; line-height: 1.2;">
     ${values.map(v => `<div style="white-space: nowrap; text-align: center;">${v}</div>`).join('')}
   </div>`;
 }
 
+// ==========================
+// QUAY SỐ (HIỆU ỨNG CHẠY)
+// ==========================
 function setRandomNumber(timestamp) {
   ArrDAIKIN = JSON.parse(localStorage.getItem("ArrDAIKIN")) || [];
   if (Start === false) return;
@@ -150,9 +141,8 @@ function setRandomNumber(timestamp) {
   if (progress > tocdo && ArrDAIKIN.length > 0) {
     previous = timestamp;
 
-    // Lấy số lượng cần quay
     let count = parseInt(localStorage.getItem("spinCount")) || 1;
-    count = Math.min(count, ArrDAIKIN.length); // Không quay vượt quá số người trong danh sách
+    count = Math.min(count, ArrDAIKIN.length);
 
     let currentValues = [];
     for(let i = 0; i < count; i++) {
@@ -165,6 +155,21 @@ function setRandomNumber(timestamp) {
   requestAnimationFrame(setRandomNumber);
 }
 
+function startAnimation() {
+  var element = document.getElementById("digits");
+  var element2 = document.getElementById("digits2");
+
+  element.classList.remove("run-animation");
+  element2.classList.remove("run-animation");
+  void element.offsetWidth;
+  void element2.offsetWidth;
+  element.classList.add("run-animation");
+  element2.classList.add("run-animation");
+}
+
+// ==========================
+// QUAY SỐ CHẬM DẦN & CHỐT KẾT QUẢ
+// ==========================
 function setRandomNumber_Cham(timestamp) {
   ArrDAIKIN = JSON.parse(localStorage.getItem("ArrDAIKIN")) || [];
   if (!startTime) startTime = timestamp;
@@ -190,21 +195,21 @@ function setRandomNumber_Cham(timestamp) {
       }
       $("#digits").html(renderDigitsGrid(currentValues));
       cham++;
-      timecham += tocdo; // Tăng dần thời gian trễ[cite: 8]
+      timecham += tocdo;
     }
     requestAnimationFrame(setRandomNumber_Cham);
     return;
   }
 
-  // ✅ KẾT THÚC QUAY - CHỐT KẾT QUẢ VÀ LƯU
+  // ✅ CHỐT KẾT QUẢ VÀ LƯU
   cham = 0;
-  timecham = tocdo; // Reset tốc độ[cite: 8]
+  timecham = tocdo;
 
   let finalWinners = [];
   let available = [...ArrDAIKIN];
   let needed = count;
 
-  // 1. Ưu tiên xét ép trúng (nếu có)
+  // Xét giải ép trúng
   var forcedWinner = JSON.parse(localStorage.getItem("ArrDAIKINTrungThuong"));
   if (forcedWinner != null && available.includes(forcedWinner)) {
     finalWinners.push(forcedWinner);
@@ -212,7 +217,7 @@ function setRandomNumber_Cham(timestamp) {
     needed--;
   }
 
-  // 2. Random các slot còn lại
+  // Random các slot còn lại
   for(let i = 0; i < needed; i++) {
       if (available.length === 0) break;
       let r = Math.floor(Math.random() * available.length);
@@ -220,21 +225,20 @@ function setRandomNumber_Cham(timestamp) {
       available.splice(r, 1);
   }
 
-  // Khắc phục lỗi đứng máy: Thay thế sort() bằng hàm shuffleArray đã có sẵn[cite: 8]
+  // Xáo trộn vị trí hiển thị an toàn
   shuffleArray(finalWinners);
 
-  // Hiển thị lưới kết quả
   $("#digits").html(renderDigitsGrid(finalWinners));
   
-  // Bọc try-catch để ngăn lỗi animation ảnh hưởng đến việc lưu kết quả
+  // Kích hoạt pháo hoa
   try {
     startAnimation();
     startConfettiLoop();
   } catch(e) {
-    console.error("Bỏ qua lỗi hiệu ứng:", e);
+    console.error("Lỗi hiệu ứng:", e);
   }
 
-  // 3. Ghi nhận TẤT CẢ vào danh sách trúng thưởng
+  // Ghi nhận vào danh sách trúng thưởng
   var DAIKINDaTrungThuong = ensureArray("DAIKINDaTrungThuong");
   finalWinners.forEach(w => {
       DAIKINDaTrungThuong.push(w);
@@ -246,15 +250,11 @@ function setRandomNumber_Cham(timestamp) {
   localStorage.setItem("DAIKINDaTrungThuong", JSON.stringify(DAIKINDaTrungThuong));
 
   kiemtrachay = false;
-  
-  // Xáo trộn lại danh sách còn lại cho lần quay sau[cite: 8]
-  shuffleArray(ArrDAIKIN); 
+  shuffleArray(ArrDAIKIN);
 
   $("#start").show();
   $("#stop").hide();
 }
-
-
 
 function fnStart() {
   if (Start === true || kiemtrachay === true) return;
@@ -277,13 +277,12 @@ function fnStop() {
 }
 
 // ==========================
-// Background apply (safe + fallback)
+// Background apply
 // ==========================
 function changeBackground(backgroundUrl) {
   let videoElement = document.getElementById("background-video");
   if (!videoElement) return;
 
-  // fallback nếu video lỗi
   videoElement.onerror = function () {
     const fallback = "assets/background/video1.mp4";
     if (videoElement.src !== fallback) {
@@ -296,7 +295,6 @@ function changeBackground(backgroundUrl) {
   writeStoredBackground(backgroundUrl);
 }
 
-// nhận background đổi từ control
 window.addEventListener("storage", function (event) {
   if (event.key === "backgroundVideo") {
     const url = readStoredBackground();
@@ -308,7 +306,7 @@ window.addEventListener("storage", function (event) {
     if (digitsPosition) {
       $("#digits").css({ left: digitsPosition.left + "px", top: digitsPosition.top + "px" });
     } else {
-      $("#digits").css({ left: "", top: "" }); // về mặc định CSS
+      $("#digits").css({ left: "", top: "" });
     }
   }
 
@@ -328,7 +326,6 @@ $("#stop").on("click", fnStop);
 $(document).ready(function () {
   init();
 
-  // restore vị trí/kích thước digits
   let digitsPosition = JSON.parse(localStorage.getItem("digitsPosition"));
   let digitsSize = localStorage.getItem("digitsSize");
 
@@ -343,7 +340,6 @@ $(document).ready(function () {
   if (savedRange) $("#number-range").html(savedRange);
 });
 
-// phím tắt
 $(document).keydown(function (e) {
   let digits = $("#digits");
   let pos = digits.position();
@@ -361,7 +357,6 @@ $(document).keydown(function (e) {
     case 75: // k
       digits.css({ top: pos.top + 10 + "px" });
       break;
-
     case 189: // -
       let newSize = prompt("Nhập kích thước mới cho SỐ (px):");
       if (newSize && !isNaN(newSize)) {
@@ -369,14 +364,12 @@ $(document).keydown(function (e) {
         localStorage.setItem("digitsSize", newSize);
       }
       break;
-
     case 187: // =
       digits.removeAttr("style");
       localStorage.removeItem("digitsPosition");
       localStorage.removeItem("digitsSize");
       alert("Khôi phục tất cả cài đặt!");
       break;
-
     case 49:
       changeBackground("assets/background/video1.mp4");
       break;
@@ -386,11 +379,9 @@ $(document).keydown(function (e) {
     case 51:
       changeBackground("assets/background/video3.mp4");
       break;
-
     case 81: // Q nhập lại danh sách
       if (!kiemtrachay) nhapdanhsachquay();
       break;
-
     default:
       return;
   }
@@ -399,7 +390,6 @@ $(document).keydown(function (e) {
   e.preventDefault();
 });
 
-// sync từ control.html
 window.addEventListener("storage", function (event) {
   if (event.key === "btnStart") {
     let nutStart = JSON.parse(localStorage.getItem("btnStart"));
@@ -411,15 +401,15 @@ window.addEventListener("storage", function (event) {
     stopConfetti();
   }
 });
+
 // ==========================
-// Confetti Engine (loop until Reset)
-// uses <canvas id="fireworksCanvas"></canvas>
+// Confetti Engine (Fixed)
 // ==========================
 let __confetti = {
   running: false,
   raf: null,
   interval: null,
-  timeout: null,   // ✅ thêm
+  timeout: null,
   canvas: null,
   ctx: null,
   w: 0,
@@ -445,10 +435,8 @@ function __confettiSpawnBurst(count = 120) {
   const w = __confetti.w;
   const h = __confetti.h;
 
-  // ✅ chọn vị trí ngẫu nhiên cho mỗi burst
-  // (ưu tiên vùng nhìn đẹp: tránh sát mép và không quá thấp)
-  const originX = w * (0.1 + Math.random() * 0.8);   // 10% -> 90% chiều ngang
-  const originY = h * (0.12 + Math.random() * 0.55); // 12% -> 67% chiều dọc
+  const originX = w * (0.1 + Math.random() * 0.8);
+  const originY = h * (0.12 + Math.random() * 0.55);
 
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
@@ -479,7 +467,6 @@ function __confettiTick() {
 
   ctx.clearRect(0, 0, w, h);
 
-  // update + draw
   const next = [];
   for (const p of __confetti.particles) {
     p.vx *= p.drag;
@@ -490,10 +477,8 @@ function __confettiTick() {
     p.rot += p.rotSpd;
     p.life -= 1;
 
-    // giữ nếu còn sống và chưa ra khỏi màn hình quá xa
     if (p.life > 0 && p.y < h + 60) next.push(p);
 
-    // draw (rect xoay)
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rot);
@@ -507,7 +492,6 @@ function __confettiTick() {
 }
 
 function startConfettiLoop() {
-  // 1. Khởi tạo canvas nếu chưa có
   if (!__confetti.canvas) {
     __confetti.canvas = document.getElementById("fireworksCanvas");
     if (!__confetti.canvas) return;
@@ -523,17 +507,14 @@ function startConfettiLoop() {
     window.addEventListener("resize", __confettiResize);
   }
 
-  // 2. ÉP DỪNG và làm sạch mọi trạng thái bị kẹt từ lần quay trước
+  // Xóa mọi trạng thái kẹt cũ
   stopConfetti();
 
-  // 3. Khởi động lại đợt pháo giấy mới
   __confetti.running = true;
   __confetti.particles = [];
 
-  // Bắn đợt đầu tiên cường độ mạnh
   __confettiSpawnBurst(160);
 
-  // Lặp lại hiệu ứng bắn rải rác
   __confetti.interval = setInterval(() => {
     const bursts = 2 + Math.floor(Math.random() * 3);
     for (let b = 0; b < bursts; b++) __confettiSpawnBurst(70);
@@ -541,7 +522,6 @@ function startConfettiLoop() {
 
   __confettiTick();
 
-  // Đặt lại bộ đếm giờ tự động tắt sau 20 giây
   if (__confetti.timeout) {
     clearTimeout(__confetti.timeout);
   }
@@ -549,6 +529,7 @@ function startConfettiLoop() {
     stopConfetti();
   }, 20000);
 }
+
 function stopConfetti() {
   __confetti.running = false;
 
@@ -560,13 +541,10 @@ function stopConfetti() {
     cancelAnimationFrame(__confetti.raf);
     __confetti.raf = null;
   }
-
-  // ✅ thêm
   if (__confetti.timeout) {
     clearTimeout(__confetti.timeout);
     __confetti.timeout = null;
   }
-
   if (__confetti.ctx) {
     __confetti.ctx.clearRect(0, 0, __confetti.w, __confetti.h);
   }
